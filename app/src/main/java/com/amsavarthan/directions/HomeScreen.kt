@@ -15,11 +15,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.LocationDisabled
+import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.PinDrop
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -37,6 +39,7 @@ import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.android.libraries.places.widget.Autocomplete
 import com.google.maps.android.compose.*
 
@@ -100,8 +103,8 @@ private fun PermissionGrantedView(
     val uiSettings by remember {
         mutableStateOf(
             MapUiSettings(
-                myLocationButtonEnabled = false,
-                zoomControlsEnabled = false,
+                myLocationButtonEnabled = true,
+                zoomControlsEnabled = true,
             )
         )
     }
@@ -109,6 +112,7 @@ private fun PermissionGrantedView(
         mutableStateOf(
             MapProperties(
                 isMyLocationEnabled = true,
+                mapStyleOptions = MapStyleOptions.loadRawResourceStyle(context, R.raw.map)
             )
         )
     }
@@ -159,7 +163,7 @@ private fun PermissionGrantedView(
                 originPlace?.latLng?.let {
                     Marker(
                         state = MarkerState(it),
-                        title = originPlace?.name
+                        title = originPlace?.name,
                     )
                 }
                 destinationPlace?.latLng?.let {
@@ -168,7 +172,7 @@ private fun PermissionGrantedView(
                         title = destinationPlace?.name
                     )
                 }
-                Polyline(points = polyLineList, width = 12f)
+                Polyline(points = polyLineList, width = 20f)
             }
 
         }
@@ -186,9 +190,11 @@ private fun PermissionGrantedView(
                 } else {
                     Column {
                         CardField(
+                            viewModel = viewModel,
                             label = "From",
                             color = MaterialTheme.colors.primary,
                             value = originPlace?.name.orEmpty(),
+                            locationType = LocationType.ORIGIN,
                             onClick = {
                                 if (isLoading) return@CardField
                                 viewModel.editingLocationType = LocationType.ORIGIN
@@ -201,9 +207,11 @@ private fun PermissionGrantedView(
                         )
                         Divider(color = MaterialTheme.colors.onBackground.copy(0.05f))
                         CardField(
+                            viewModel = viewModel,
                             label = "To",
                             color = MaterialTheme.colors.secondary,
                             value = destinationPlace?.name.orEmpty(),
+                            locationType = LocationType.DESTINATION,
                             onClick = {
                                 if (isLoading) return@CardField
                                 viewModel.editingLocationType = LocationType.DESTINATION
@@ -251,18 +259,21 @@ private fun PermissionGrantedView(
     }
 }
 
+@SuppressLint("MissingPermission")
 @Composable
 private fun CardField(
+    viewModel: MyViewModel,
     label: String,
     color: Color,
     value: String,
     onClick: () -> Unit,
+    locationType: LocationType
 ) {
     Column(modifier = Modifier.clickable { onClick() }) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 16.dp)
+                .padding(top = 4.dp)
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -273,13 +284,26 @@ private fun CardField(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
+                modifier = Modifier.weight(1f),
                 text = label,
                 color = MaterialTheme.colors.onBackground.copy(alpha = 0.4f)
             )
+            IconButton(
+                modifier = Modifier.alpha(if (value == "Current Location") 0.0f else 1.0f),
+                onClick = { viewModel.setCurrentLocationAsLocationType(locationType) }) {
+                Icon(
+                    imageVector = Icons.Outlined.MyLocation,
+                    contentDescription = "current location"
+                )
+            }
         }
-        Row(
+        Column(
             Modifier
-                .padding(top = 4.dp, start = 32.dp, end = 16.dp, bottom = 16.dp)
+                .padding(
+                    start = 32.dp,
+                    end = 16.dp,
+                    bottom = 8.dp
+                )
                 .fillMaxWidth()
         ) {
             if (value.isNotBlank()) {
@@ -287,6 +311,7 @@ private fun CardField(
                     text = value,
                     style = MaterialTheme.typography.h6,
                 )
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }

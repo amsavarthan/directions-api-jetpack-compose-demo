@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresPermission
 import androidx.lifecycle.ViewModel
@@ -63,6 +64,29 @@ class MyViewModel(
         }
     }
 
+    @RequiresPermission(
+        allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION],
+    )
+    fun setCurrentLocationAsLocationType(locationType: LocationType) {
+        fusedLocationClient.lastLocation.addOnSuccessListener {
+            val currentLocation = LatLng(it.latitude, it.longitude)
+            viewModelScope.launch {
+                val place =
+                    Place.builder().setLatLng(currentLocation).setName("Current Location").build()
+                Log.d("DEBUG", "setCurrentLocationAsOrigin: ${place.latLng.format()}")
+                when (locationType) {
+                    LocationType.ORIGIN -> _originPlace.emit(
+                        place
+                    )
+                    LocationType.DESTINATION -> _destinationPlace.emit(
+                        place
+                    )
+                }
+            }
+        }
+
+    }
+
     fun updatePlace(place: Place) {
         clearPolyLine()
         viewModelScope.launch {
@@ -73,12 +97,16 @@ class MyViewModel(
         }
     }
 
+    private fun LatLng?.format(): String {
+        return "${this?.latitude},${this?.longitude}"
+    }
+
     fun getDirections(context: Context) {
         val api = ApiInterface.create()
         viewModelScope.launch { _isLoading.emit(true) }
         api.getDirection(
-            "place_id:${originPlace.value?.id}",
-            "place_id:${destinationPlace.value?.id}",
+            if (originPlace.value?.id == null) originPlace.value?.latLng.format() else "place_id:${originPlace.value?.id}",
+            if (destinationPlace.value?.id == null) destinationPlace.value?.latLng.format() else "place_id:${destinationPlace.value?.id}",
             context.getString(R.string.api_key)
         ).enqueue(object : Callback<Result> {
             override fun onResponse(call: Call<Result>, response: Response<Result>) {
