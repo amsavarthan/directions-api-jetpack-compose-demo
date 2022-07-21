@@ -3,41 +3,27 @@ package com.amsavarthan.directions
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.runtime.Composable
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.amsavarthan.directions.screens.ChooseLocationScreen
-import com.amsavarthan.directions.screens.HomeScreen
-import com.amsavarthan.directions.screens.ShowDirectionsScreen
+import androidx.activity.viewModels
 import com.amsavarthan.directions.ui.theme.DirectionsTheme
+import com.amsavarthan.directions.viewmodel.MyViewModel
+import com.amsavarthan.directions.viewmodel.MyViewModelFactory
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private val viewModel by viewModels<MyViewModel> { MyViewModelFactory(fusedLocationClient) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MainScreen()
+            DirectionsTheme {
+                HomeScreen(viewModel)
+            }
         }
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
     }
-}
 
-@Composable
-fun MainScreen() {
-    DirectionsTheme {
-        val navController = rememberNavController()
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Home.route
-        ) {
-            composable(Screen.Home.route) {
-                HomeScreen(navController)
-            }
-            composable(Screen.ChooseLocation.route) {
-                ChooseLocationScreen(navController)
-            }
-            composable(Screen.ShowDirection.route) {
-                ShowDirectionsScreen(navController)
-            }
-        }
-    }
+
 }
